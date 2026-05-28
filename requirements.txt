@@ -1,0 +1,14 @@
+accelerate
+apted
+beautifulsoup4
+distance
+huggingface_hub
+lxml
+pandas
+pillow
+playwright
+qwen-vl-utils
+torch
+torchvision
+tqdm
+git+https://github.com/huggingface/transformers.git

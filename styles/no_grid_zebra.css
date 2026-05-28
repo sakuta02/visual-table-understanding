@@ -1,0 +1,72 @@
+/* Tests row grouping when structure is indicated by alternating row backgrounds instead of lines. */
+body {
+  margin: 0;
+  padding: 20px;
+  background: white;
+}
+
+table {
+  border-collapse: collapse;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  color: #111;
+  background: white;
+}
+
+thead {
+  background-color: #d9d9d9;
+}
+
+tbody {
+  background: transparent;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #eeeeee;
+}
+
+tbody tr:nth-child(odd) {
+  background-color: #ffffff;
+}
+
+td,
+th {
+  border: none;
+  padding: 5px 10px;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+thead td,
+thead th {
+  font-weight: bold;
+}
+
+tbody td:first-child {
+  text-align: left;
+}
+
+td[colspan],
+th[colspan] {
+  text-align: center;
+  font-weight: bold;
+}
+
+td[rowspan],
+th[rowspan] {
+  vertical-align: middle;
+}
+
+b {
+  font-weight: bold;
+}
+
+i {
+  font-style: italic;
+}
+
+sup,
+sub {
+  font-size: 0.7em;
+}

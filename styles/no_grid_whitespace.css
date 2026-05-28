@@ -1,0 +1,62 @@
+/* Tests whether table structure is inferred from whitespace and alignment without grid lines. */
+body {
+  margin: 0;
+  padding: 20px;
+  background: white;
+}
+
+table {
+  border-collapse: collapse;
+  border: none;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  color: #111;
+  background: white;
+}
+
+thead,
+tbody {
+  background: transparent;
+}
+
+td,
+th {
+  border: none;
+  padding: 5px 12px;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+thead td,
+thead th {
+  font-weight: bold;
+}
+
+tbody td:first-child {
+  text-align: left;
+}
+
+td[colspan],
+th[colspan] {
+  text-align: center;
+  font-weight: bold;
+}
+
+td[rowspan],
+th[rowspan] {
+  vertical-align: middle;
+}
+
+b {
+  font-weight: bold;
+}
+
+i {
+  font-style: italic;
+}
+
+sup,
+sub {
+  font-size: 0.7em;
+}

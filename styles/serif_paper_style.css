@@ -1,0 +1,66 @@
+/* Tests a scientific paper style with serif text and horizontal rules only. */
+body {
+  margin: 0;
+  padding: 20px;
+  background: white;
+}
+
+table {
+  border-collapse: collapse;
+  border-top: 2px solid #111;
+  border-bottom: 2px solid #111;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12px;
+  color: #111;
+  background: white;
+}
+
+thead,
+tbody {
+  background: transparent;
+}
+
+td,
+th {
+  border-top: 0.5px solid #777;
+  border-right: none;
+  border-bottom: 0.5px solid #777;
+  border-left: none;
+  padding: 4px 7px;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+thead td,
+thead th {
+  font-weight: bold;
+}
+
+tbody td:first-child {
+  text-align: left;
+}
+
+td[colspan],
+th[colspan] {
+  text-align: center;
+  font-weight: bold;
+}
+
+td[rowspan],
+th[rowspan] {
+  vertical-align: middle;
+}
+
+b {
+  font-weight: bold;
+}
+
+i {
+  font-style: italic;
+}
+
+sup,
+sub {
+  font-size: 0.7em;
+}

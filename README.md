@@ -1,65 +1,80 @@
+# Исследование применения мультимодальных языковых моделей к задаче визуального понимания сложных таблиц
+
+Исследование того, насколько современные мультимодальные модели способны восстанавливать структуру сложных таблиц по изображению — и насколько на это влияет визуальное оформление таблицы (сетка, цвет, выравнивание).
+
+
+## TL;DR
+
+- Сравнены две мультимодальные модели — GLM-OCR (специализированная OCR-модель, 0.9B) и Qwen2.5-VL (универсальная VLM с динамическим разрешением) на задаче восстановления HTML-структуры таблицы по изображению.
+- Тестовый набор: 50 таблиц из PubTabNet (25 простых + 25 с объединёнными ячейками), каждая отрендерена в 7 визуальных стилях → 350 изображений на модель на конфигурацию.
+- Качество оценивалось метрикой TEDS, отдельно full и structure-only.
+- GLM-OCR стабильно превосходит Qwen2.5-VL — даже в самой слабой своей конфигурации (при максимальной стороне изображениия 900px) она обгоняет лучшую конфигурацию Qwen (1400px), и при этом работает быстрее.
+- Влияние визуального стиля таблицы — заметное, но вторичное: разброс между стилями (3.2–6.1%) меньше, чем разрыв между моделями.
+- Перед практической частью был проведён обзор предметной области: Table Detection и Table Structure Recognition, Table Question Answering, Table-to-Text/Summarization, Table Fact Verification; способы представления таблиц для моделей; архитектуры VLM на примере LLaVA-1.5, Qwen2.5-VL, GLM-OCR
+
+
+## ID → файл
+
+В хитмапах таблицы обозначены числовыми ID от 1 до 50. Соответствие ID и исходного имени файла из PubTabNet:
+
+| ID | Filename |
+|---|---|
+| 1 | 01f004ad9f9d538f28dc1edd0dcc1844e8dae3b548d82f22bd77188fab23aede.png |
+| 2 | 021e1dc7b113b15d59fe03c49b03d16cc4f0962e0480874cc3fe5859518b914b.png |
+| 3 | 02cb4251e0872e38a50aefba503cdeb163749621e5fc64bbd52c82912fee4424.png |
+| 4 | 06229a79b4c3ee4f59f1aa6c86d420006473534143898a34b40309bf65af56ff.png |
+| 5 | 09b5ffa2fd874e5d6c5a6e249ce1ade206ce29719d43f0b4d8f22e694e3f7521.png |
+| 6 | 0a4ad1a9056f7b176cf2ea7fe8eb0917b9be54c51f13024f6daa7e8e677d95f5.png |
+| 7 | 0a9d75ddd91445ba6a219610e77e40ee6bf6ebcc81a85cc7e82d45983f98cc04.png |
+| 8 | 0c1dae09fa84325b6cc5035911318cd56cb654eede2b5e664787a77f9fbd295c.png |
+| 9 | 0c7c370ae9c0e83c567dac66b89b4e3e258cd628939c48a6a58724677671e61e.png |
+| 10 | 0d76571c2c0ed8877a27dae24f29659d4e2799a30b8b03449e1e8d0e6a300333.png |
+| 11 | 0efed21407dc158d6bacdffaf89c5d686bf718d59d8541202955ae59566ae7e7.png |
+| 12 | 0f11f0c50f89213400914c7a505147442058b668589b9430ede7aef5c13d8c07.png |
+| 13 | 0f5091127833f44ca93627013095fc334613017b7618ad4b4dc901ee9aed6717.png |
+| 14 | 11cb9c18a9babdd9a2d9dc17981242367f7f610b08908c5a76113651434f7f11.png |
+| 15 | 14711257dfe4fe0f8925f1995031c7150aa21fe0124afdbfd3e3b092b3a41146.png |
+| 16 | 1631fa74e7b3d91cd6bca4a25fc2b6d72fddbcb86d4d0a23f21a9eb83947b945.png |
+| 17 | 1640a49de9d2d9952992914412f49cd8d6fec928b229e642f7aaa2e338f647f3.png |
+| 18 | 1737004d9086890b79abb277bd7cbcf77189be5ac372bdf9db79531acf6c3c33.png |
+| 19 | 18e5c9a792cac2084bcc8c9fedf4cdb5e30e20347834078b6756c1b724b69527.png |
+| 20 | 196980b397241b5f2cd2f117b5b5defca0b5dd52853cb9028408421701bbf93f.png |
+| 21 | 1b952e2df871cc07fae0d10a4b25ceda75de29a1c6c6912d7e586fef540b54c6.png |
+| 22 | 1c8c786e697d73021eaa53b2981f842209367d6595154fc3c3110bd98e9f27e0.png |
+| 23 | 1cea78f04b9c70587473fc65b3b5f90ee0b6c73a8db973303cf9e4f64a82419a.png |
+| 24 | 1d42ade7b14fd7ff1005057a6958852077c595c3cbb5ca84ec2f1e7855f2d9f2.png |
+| 25 | 1d4fec610555fab29b3eca8ef0cc8fa8b3d4e457d4f2307350dc663dd88f591c.png |
+| 26 | 00fe8dad30865d3249928e5f3000a17171d8c2782b814e7006f4883f324ec649.png |
+| 27 | 027a112a5cdbae7f5e93c2cc9f16532bc0b88d3000d94949fffece41765f8138.png |
+| 28 | 051f8ed7ad1e8f47a83c3eaa9357b3b585f044ec69007aff2db1708be6091c72.png |
+| 29 | 05a6f86abe6bd9937f885d83970676c7f7a041ad37cd2ab8d50e2b4dfb7ca37f.png |
+| 30 | 05feba05bb227e047605f3b26b40651b7461c5d710aaf9650732123fdbc220a1.png |
+| 31 | 0611ebfb00e97cf3cede987ecf63545586618cb4b18fa2d448b60be7a335e3e6.png |
+| 32 | 06e053209eb0b5e01885a82f6470ed43eaa1da0a332c78b57efe4808f1361f37.png |
+| 33 | 076d9395afbeb921187a0c14965a1c07165ee3f25d19b3466bf129cc2f651928.png |
+| 34 | 0b7ea8b800a624e90e5b4bf257231105d314269447583e741486fa5b2a73b8a3.png |
+| 35 | 0d0bc9de6c6c29ae5507a5362d45889429184a8828acde20cc00d8244c7b007d.png |
+| 36 | 0d6cecfb256115a408b5ba7000cfcdc422c95b55e2ebae43fc8ac4db9b425099.png |
+| 37 | 0e79d2b3ee14fa9f4130671b5ed9ded36395ea80d7f5478dd485eb16b7f3815a.png |
+| 38 | 0e888c0c3a134a6d66cf0fae547c4e6c4746c4858a0da3c82e1efddd086dba72.png |
+| 39 | 0ed8e3f798a0429ecc33dcba0f23369f181f24be217b3cd9dd53c7d1d29169c1.png |
+| 40 | 108caffb46f5d2d3b9e391f68e12c6627a9f1696d012fc7506f47a279b244189.png |
+| 41 | 127fa2e0480ac2258f7053b082ecbefb4e29d4d4b2054a5a542a1475b0f76c5e.png |
+| 42 | 1286252ff86f8b66923b2b9d28756b53bfc31c582ad97f25ee4f607518562722.png |
+| 43 | 13b189d0d0ef755d837260b58f0ff70259a1930777de8759c877ae148d46abcc.png |
+| 44 | 14a3a99918799915737ddf9a6f917de9730463928db42646c88c84893e764c73.png |
+| 45 | 15c8fba76546355d7e0b96d58b7c2b297bfd3368059e9dcf3f0dcfb0932975bb.png |
+| 46 | 15f57f23637b95ce6f170f04a1151bb7ec13ebfd54517432a8b6630d8c9506cc.png |
+| 47 | 16be8c61095e525e4b08f0d3f94bccf9206b3786d182656f81a06d5f38b4e180.png |
+| 48 | 172c796ac1b773861fa1dfa5ce395539db69ed7a6de7fc96e704933ea0605530.png |
+| 49 | 175c447ec27452a109ec215e0f35c41bded47e6e5a834ad07a136e599349660d.png |
+| 50 | 1760b2a9a980613cd0d31f0518c69959cd5abeae1a41b7c004ec897f66ae1127.png |
+
 kaggle ноутбук: https://www.kaggle.com/code/saveliymazovatov/spbu-proj
 
-В хитмапах таблицы обозначаются числовыми идентификаторами от 1 до 50.
-Для воспроизводимости ниже приведено соответствие между номером таблицы на визуализациях и исходным именем изображения из PubTabNet.
+---
 
-<table>
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Filename</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr><td>1</td><td><code>01f004ad9f9d538f28dc1edd0dcc1844e8dae3b548d82f22bd77188fab23aede.png</code></td></tr>
-    <tr><td>2</td><td><code>021e1dc7b113b15d59fe03c49b03d16cc4f0962e0480874cc3fe5859518b914b.png</code></td></tr>
-    <tr><td>3</td><td><code>02cb4251e0872e38a50aefba503cdeb163749621e5fc64bbd52c82912fee4424.png</code></td></tr>
-    <tr><td>4</td><td><code>06229a79b4c3ee4f59f1aa6c86d420006473534143898a34b40309bf65af56ff.png</code></td></tr>
-    <tr><td>5</td><td><code>09b5ffa2fd874e5d6c5a6e249ce1ade206ce29719d43f0b4d8f22e694e3f7521.png</code></td></tr>
-    <tr><td>6</td><td><code>0a4ad1a9056f7b176cf2ea7fe8eb0917b9be54c51f13024f6daa7e8e677d95f5.png</code></td></tr>
-    <tr><td>7</td><td><code>0a9d75ddd91445ba6a219610e77e40ee6bf6ebcc81a85cc7e82d45983f98cc04.png</code></td></tr>
-    <tr><td>8</td><td><code>0c1dae09fa84325b6cc5035911318cd56cb654eede2b5e664787a77f9fbd295c.png</code></td></tr>
-    <tr><td>9</td><td><code>0c7c370ae9c0e83c567dac66b89b4e3e258cd628939c48a6a58724677671e61e.png</code></td></tr>
-    <tr><td>10</td><td><code>0d76571c2c0ed8877a27dae24f29659d4e2799a30b8b03449e1e8d0e6a300333.png</code></td></tr>
-    <tr><td>11</td><td><code>0efed21407dc158d6bacdffaf89c5d686bf718d59d8541202955ae59566ae7e7.png</code></td></tr>
-    <tr><td>12</td><td><code>0f11f0c50f89213400914c7a505147442058b668589b9430ede7aef5c13d8c07.png</code></td></tr>
-    <tr><td>13</td><td><code>0f5091127833f44ca93627013095fc334613017b7618ad4b4dc901ee9aed6717.png</code></td></tr>
-    <tr><td>14</td><td><code>11cb9c18a9babdd9a2d9dc17981242367f7f610b08908c5a76113651434f7f11.png</code></td></tr>
-    <tr><td>15</td><td><code>14711257dfe4fe0f8925f1995031c7150aa21fe0124afdbfd3e3b092b3a41146.png</code></td></tr>
-    <tr><td>16</td><td><code>1631fa74e7b3d91cd6bca4a25fc2b6d72fddbcb86d4d0a23f21a9eb83947b945.png</code></td></tr>
-    <tr><td>17</td><td><code>1640a49de9d2d9952992914412f49cd8d6fec928b229e642f7aaa2e338f647f3.png</code></td></tr>
-    <tr><td>18</td><td><code>1737004d9086890b79abb277bd7cbcf77189be5ac372bdf9db79531acf6c3c33.png</code></td></tr>
-    <tr><td>19</td><td><code>18e5c9a792cac2084bcc8c9fedf4cdb5e30e20347834078b6756c1b724b69527.png</code></td></tr>
-    <tr><td>20</td><td><code>196980b397241b5f2cd2f117b5b5defca0b5dd52853cb9028408421701bbf93f.png</code></td></tr>
-    <tr><td>21</td><td><code>1b952e2df871cc07fae0d10a4b25ceda75de29a1c6c6912d7e586fef540b54c6.png</code></td></tr>
-    <tr><td>22</td><td><code>1c8c786e697d73021eaa53b2981f842209367d6595154fc3c3110bd98e9f27e0.png</code></td></tr>
-    <tr><td>23</td><td><code>1cea78f04b9c70587473fc65b3b5f90ee0b6c73a8db973303cf9e4f64a82419a.png</code></td></tr>
-    <tr><td>24</td><td><code>1d42ade7b14fd7ff1005057a6958852077c595c3cbb5ca84ec2f1e7855f2d9f2.png</code></td></tr>
-    <tr><td>25</td><td><code>1d4fec610555fab29b3eca8ef0cc8fa8b3d4e457d4f2307350dc663dd88f591c.png</code></td></tr>
-    <tr><td>26</td><td><code>00fe8dad30865d3249928e5f3000a17171d8c2782b814e7006f4883f324ec649.png</code></td></tr>
-    <tr><td>27</td><td><code>027a112a5cdbae7f5e93c2cc9f16532bc0b88d3000d94949fffece41765f8138.png</code></td></tr>
-    <tr><td>28</td><td><code>051f8ed7ad1e8f47a83c3eaa9357b3b585f044ec69007aff2db1708be6091c72.png</code></td></tr>
-    <tr><td>29</td><td><code>05a6f86abe6bd9937f885d83970676c7f7a041ad37cd2ab8d50e2b4dfb7ca37f.png</code></td></tr>
-    <tr><td>30</td><td><code>05feba05bb227e047605f3b26b40651b7461c5d710aaf9650732123fdbc220a1.png</code></td></tr>
-    <tr><td>31</td><td><code>0611ebfb00e97cf3cede987ecf63545586618cb4b18fa2d448b60be7a335e3e6.png</code></td></tr>
-    <tr><td>32</td><td><code>06e053209eb0b5e01885a82f6470ed43eaa1da0a332c78b57efe4808f1361f37.png</code></td></tr>
-    <tr><td>33</td><td><code>076d9395afbeb921187a0c14965a1c07165ee3f25d19b3466bf129cc2f651928.png</code></td></tr>
-    <tr><td>34</td><td><code>0b7ea8b800a624e90e5b4bf257231105d314269447583e741486fa5b2a73b8a3.png</code></td></tr>
-    <tr><td>35</td><td><code>0d0bc9de6c6c29ae5507a5362d45889429184a8828acde20cc00d8244c7b007d.png</code></td></tr>
-    <tr><td>36</td><td><code>0d6cecfb256115a408b5ba7000cfcdc422c95b55e2ebae43fc8ac4db9b425099.png</code></td></tr>
-    <tr><td>37</td><td><code>0e79d2b3ee14fa9f4130671b5ed9ded36395ea80d7f5478dd485eb16b7f3815a.png</code></td></tr>
-    <tr><td>38</td><td><code>0e888c0c3a134a6d66cf0fae547c4e6c4746c4858a0da3c82e1efddd086dba72.png</code></td></tr>
-    <tr><td>39</td><td><code>0ed8e3f798a0429ecc33dcba0f23369f181f24be217b3cd9dd53c7d1d29169c1.png</code></td></tr>
-    <tr><td>40</td><td><code>108caffb46f5d2d3b9e391f68e12c6627a9f1696d012fc7506f47a279b244189.png</code></td></tr>
-    <tr><td>41</td><td><code>127fa2e0480ac2258f7053b082ecbefb4e29d4d4b2054a5a542a1475b0f76c5e.png</code></td></tr>
-    <tr><td>42</td><td><code>1286252ff86f8b66923b2b9d28756b53bfc31c582ad97f25ee4f607518562722.png</code></td></tr>
-    <tr><td>43</td><td><code>13b189d0d0ef755d837260b58f0ff70259a1930777de8759c877ae148d46abcc.png</code></td></tr>
-    <tr><td>44</td><td><code>14a3a99918799915737ddf9a6f917de9730463928db42646c88c84893e764c73.png</code></td></tr>
-    <tr><td>45</td><td><code>15c8fba76546355d7e0b96d58b7c2b297bfd3368059e9dcf3f0dcfb0932975bb.png</code></td></tr>
-    <tr><td>46</td><td><code>15f57f23637b95ce6f170f04a1151bb7ec13ebfd54517432a8b6630d8c9506cc.png</code></td></tr>
-    <tr><td>47</td><td><code>16be8c61095e525e4b08f0d3f94bccf9206b3786d182656f81a06d5f38b4e180.png</code></td></tr>
-    <tr><td>48</td><td><code>172c796ac1b773861fa1dfa5ce395539db69ed7a6de7fc96e704933ea0605530.png</code></td></tr>
-    <tr><td>49</td><td><code>175c447ec27452a109ec215e0f35c41bded47e6e5a834ad07a136e599349660d.png</code></td></tr>
-    <tr><td>50</td><td><code>1760b2a9a980613cd0d31f0518c69959cd5abeae1a41b7c004ec897f66ae1127.png</code></td></tr>
-  </tbody>
-</table>
+**Автор:** Мазоватов Савелий Евгеньевич, СПбГУ, факультет математики и механики
+**Научный руководитель:** Старший преподаватель кафедры информатики СПбГУ Ф.В. Бушмелёв
+**Консультант:** Младший научный сотрудник лПИИ СПб ФИЦ РАН Д.А. Демиденко
+
